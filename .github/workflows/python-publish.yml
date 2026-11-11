@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
     - name: Install dependencies
@@ -25,8 +25,7 @@ jobs:
     - name: Build package
       run: python -m build
     - name: Publish package
-      uses: pypa/gh-action-pypi-publish@c12cc61414480c03e10ea76e2a0a1a17d6c764e2
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        url: https://pypi.org/p/dvq
-        user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
+        skip-existing: true
