@@ -90,7 +90,7 @@ DVQ is organized into three modular subpackages (`dvq.visual`, `dvq.statistical`
 
 ## Community Extensibility & Contributing
 
-**DVQ is designed as an open, community-driven toolkit.** Because each subpackage (`dvq.visual`, `dvq.statistical`, `dvq.functional`) follows a simple functional contract—accepting standard nucleotide strings or sequence iterables and returning NumPy arrays, Matplotlib figures, or scalar distances—researchers can easily contribute new sequence encodings, alignment-free distance metrics, or visual diagnostics via pull requests at [https://github.com/hssn-20/dvq](https://github.com/hssn-20/dvq).
+**DVQ is designed as an open, community-driven toolkit.** Because each subpackage (`dvq.visual`, `dvq.statistical`, `dvq.functional`) follows a simple functional contract—accepting standard nucleotide strings or sequence iterables and returning NumPy arrays, Matplotlib figures, or scalar distances—researchers can easily contribute new sequence encodings, alignment-free distance metrics, or visual diagnostics via pull requests at [https://github.com/sprang-lab/dvq](https://github.com/sprang-lab/dvq).
 
 ---
 
