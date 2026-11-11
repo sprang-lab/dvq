@@ -1,12 +1,14 @@
-# Orignial function written by Hassan Ahmed Hassan, following: 
+# Original function written by Hassan Ahmed Hassan, following:
 # https://doi.org/10.1016/j.chaos.2016.07.014
 
 import numpy as np
 from collections import Counter
+from functools import lru_cache
 from itertools import combinations
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 from typing import Tuple, List
+
 
 def get_possibilities(seq: Tuple[str, ...]) -> int:
     """
@@ -37,6 +39,7 @@ def get_possibilities(seq: Tuple[str, ...]) -> int:
 
     return len(filtered_combs)
 
+
 def dedupe(s: str) -> str:
     """
     Remove duplicate characters and sort the remaining characters in a string.
@@ -48,6 +51,7 @@ def dedupe(s: str) -> str:
     str: A string with unique and sorted characters.
     """
     return ''.join(sorted(set(s)))
+
 
 def denq_entropy_generalised(seq: str, chunk_size: int = 10) -> float:
     """
@@ -80,10 +84,11 @@ def denq_entropy_generalised(seq: str, chunk_size: int = 10) -> float:
 
     # Vectorized entropy calculation
     mask = chunk_possibilities > 1000
-    entropy_high = np.sum(chunk_percentages[mask] * (np.log2(chunk_percentages[mask]/ chunk_possibilities[mask])))
+    entropy_high = np.sum(chunk_percentages[mask] * (np.log2(chunk_percentages[mask] / chunk_possibilities[mask])))
     entropy_low = np.sum(chunk_percentages[~mask] * np.log2(chunk_percentages[~mask] / chunk_possibilities[~mask]))
     
     return -(entropy_high + entropy_low)
+
 
 def process_sequence(seq: str) -> float:
     """
@@ -96,6 +101,7 @@ def process_sequence(seq: str) -> float:
     float: The calculated entropy.
     """
     return denq_entropy_generalised(seq)
+
 
 def calculate_deng_entropies_multiprocess(seqs: List[str], num_cores: int = cpu_count()) -> List[float]:
     """
@@ -113,7 +119,7 @@ def calculate_deng_entropies_multiprocess(seqs: List[str], num_cores: int = cpu_
     return entropies
 
 
-# experimental 
+# experimental
 def deng_KL_divergence(seq_P: str, seq_Q: str, chunk_size: int = 10) -> float:
     """
     Compute a KL divergence-like metric using Deng entropy for two sequences.
@@ -138,3 +144,89 @@ def deng_KL_divergence(seq_P: str, seq_Q: str, chunk_size: int = 10) -> float:
     deng_kl_div = deng_entropy_P * np.log2(deng_entropy_P / deng_entropy_Q)
     
     return deng_kl_div
+
+
+@lru_cache(maxsize=None)
+def cached_get_possibilities(canonical_chunk: Tuple[str, ...]) -> int:
+    """
+    Cached wrapper around get_possibilities().
+
+    Chunks are sorted before being passed to this function, allowing chunks
+    with identical nucleotide composition to share a cached result across
+    large sequence repertoires.
+    """
+    return get_possibilities(canonical_chunk)
+
+
+def deng_entropy_short_sequence(seq: str, chunk_size: int = 3) -> float:
+    """
+    Calculate an adapted Deng-style entropy score for short nucleotide sequences
+    (e.g., CDR3 immune receptor sequences of 15-90 nt).
+
+    Chunk probabilities are normalized by the total number of overlapping sliding
+    windows (len(seq) - chunk_size + 1) rather than full sequence length, and
+    combinatorial possibilities are memoized via cached_get_possibilities().
+
+    Parameters:
+    seq (str): Individual nucleotide sequence (e.g., CDR3).
+    chunk_size (int): Length of overlapping nucleotide chunks (default: 3).
+
+    Returns:
+    float: Adapted Deng-style entropy score, or np.nan for invalid/too-short sequences.
+    """
+    if not isinstance(seq, str):
+        return np.nan
+
+    seq = seq.strip().upper()
+    if not seq or len(seq) < chunk_size:
+        return np.nan
+
+    if not set(seq).issubset({"A", "C", "G", "T"}):
+        return np.nan
+
+    chunks = [
+        tuple(seq[i:i + chunk_size])
+        for i in range(len(seq) - chunk_size + 1)
+    ]
+
+    chunk_counter = Counter(chunks)
+    number_of_chunks = len(chunks)
+
+    probabilities = np.array(
+        [count / number_of_chunks for count in chunk_counter.values()],
+        dtype=float,
+    )
+
+    possibilities = np.array(
+        [
+            max(cached_get_possibilities(tuple(sorted(chunk))), 1)
+            for chunk in chunk_counter.keys()
+        ],
+        dtype=float,
+    )
+
+    entropy = -np.sum(probabilities * np.log2(probabilities / possibilities))
+    return float(entropy)
+
+
+# Alias for backward compatibility with immune repertoire scripts
+deng_entropy_cdr3 = deng_entropy_short_sequence
+
+
+def unique_window_ratio(seq: str, chunk_size: int = 3) -> float:
+    """
+    Calculate the fraction of distinct sliding windows in one sequence:
+        number of distinct windows / total number of windows.
+    """
+    if not isinstance(seq, str):
+        return np.nan
+
+    seq = seq.strip().upper()
+    if len(seq) < chunk_size:
+        return np.nan
+
+    windows = [seq[i:i + chunk_size] for i in range(len(seq) - chunk_size + 1)]
+    if not windows:
+        return np.nan
+
+    return len(set(windows)) / len(windows)

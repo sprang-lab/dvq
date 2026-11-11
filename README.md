@@ -1,125 +1,99 @@
-# DVQ - DNA Visualisations and Quick comparisons 
-Abstract
-We introduce DVQ (DNA Visualisations and Quick comparisons), an open-source Python library for exploring nucleotide sequences using a variety of methods. Understanding DNA sequences intuitively is important for a variety of tasks in biology. DVQ aims to be a one-stop comprehensive library that makes explainable DNA easy for geneticists, researchers, and practitioners who need explanations. For practitioners, the library provides an easy-to-use interface to generate visualisations for their sequences by only writing a few lines of code. In this report, we demonstrate several example use cases across different types of sequences as well as visualisations. 
+# DVQ: Visual, Statistical, and Spectral Representation of Nucleotide Sequences
 
-Simple early version preprint: http://dx.doi.org/10.13140/RG.2.2.19227.89125
-
-## Methods Implemented:
-### Visual
-- [x] [Persistant Homological Representations](https://american-cse.org/csci2022-ieee/pdfs/CSCI2022-2lPzsUSRQukMlxf8K2x89I/202800b599/202800b599.pdf)
-- [x] [ColorSquare](https://match.pmf.kg.ac.rs/electronic_versions/Match68/n2/match68n2_621-637.pdf)
-- [x] [C-Curve](https://pubmed.ncbi.nlm.nih.gov/23246806/) - Removed from development plan due it being redundant vs a 2D Line
-- [x] [Spider Representation](https://www.researchgate.net/publication/260971259_Spider_Representation_of_DNA_Sequences) - Removed from development plan due to it being found to be difficult to use for large sequences
-- [x] [2D Line](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC162336/)
-- [x] [Chaos Game Representation](Fwww.sciencedirect.com%2Fscience%2Farticle%2Fpii%2FS2001037021004736&usg=AOvVaw38odDudWfUCAqbc626rD2e&opi=89978449)
-
-### Statistical
-- [x] Deng entropy
-- [x] KL Divergence plain, computes distros of chunks similar to deng entropy.
-- [x] KL Divergence KL div like measure using deng entropy.
-- [ ] [KL Divergence](https://pubmed.ncbi.nlm.nih.gov/31981184/)
-- [ ] [Perpelxity](https://arxiv.org/pdf/1202.2518.pdf)
-- [x] [Entropy](https://pubmed.ncbi.nlm.nih.gov/9344742/)
-- [x] K-Mer overlap
-- [ ] *fast* K-Mer overlap, (current implementation is too slow or stuck)
-- [x] [Wen's Method](https://pubmed.ncbi.nlm.nih.gov/29765099/)
-- [ ] JS Divergence
-- [ ] Wasserstein Distance
-
-## Overview:
-
-* How to use dvq
-```python
-from dvq import visual
-
-visual.plot_2d_comparison([seqs_1, seqs_2], ['seq_1', 'seq_2'])
-
-```
-
-![An example graphic comparing dna sequences for the same virus ](Untitled.png "2D Comparison - Same virus")
-
-```python
-from dvq import statistical
-
-statistical.similarity_wen([seqs_1, seqs_2])
-# 0.99
-
-```
-
-
-
-
-# Docs
-## Funtional
-
-This module provides utilities for detecting repeat patterns in DNA sequences, including fixed-length n-gram repeats and tandem repeats of both fixed and variable length.
-
-### Features
-
-- Detect earliest repeated n-grams
-- Detect fixed-length tandem repeats
-- Detect variable-length tandem repeats (motif discovery)
-- Batch/multiprocessing support
-
-### Classes & Functions
-
-### `DNARepeatDetector`
-
-```python
-detector = DNARepeatDetector(n=4, min_repeats=2)
-```
-
-#### `.detect_repeats(sequence, return_earliest=False)`
-- Returns list of repeated n-grams and their positions.
-- If `return_earliest=True`, returns the first repeated n-gram and its first two positions.
-
-#### `.detect_tandem_repeats(sequence)`
-- Detects adjacent (tandem) repeats of fixed-length `n`.
-
-### `detect_variable_tandem_repeats(sequence, min_n=2, max_n=6)`
-- Finds tandem repeats with motif lengths between `min_n` and `max_n`.
+**DVQ** is a lightweight, community-extensible Python library for alignment-free visualization, statistical comparison, and signal-processing analysis of DNA/RNA sequences across scales—from short sequences and multi-FASTA collections to complete viral and microbial genomes.
 
 ---
 
-#### Multiprocessing Tools
+## Installation
 
-All tools use `multiprocessing.Pool` for performance.
+```bash
+pip install dvq
+```
 
-##### `repeat_onset_positions_multiprocess(seqs, n, min_repeats, num_cores)`
-- Returns earliest repeat onset positions per sequence.
+For development installation from source:
 
-##### `tandem_repeats_multiprocess(seqs, n, min_repeats, num_cores)`
-- Returns list of tandem repeats for each sequence.
-
-##### `variable_tandem_repeats_multiprocess(seqs, min_n, max_n, min_repeats, num_cores)`
-- Returns variable-length tandem repeats for each sequence.
-
----
-
-### Example
-
-```python
-from functional.repeat_analysis import (
-    repeat_onset_positions_multiprocess,
-    tandem_repeats_multiprocess,
-    variable_tandem_repeats_multiprocess
-)
-
-seqs = ["ACGTACGTACGT", "ATCGATCGATCG", "AGCTTTCGAAGCTTTCGAA"]
-
-onsets = repeat_onset_positions_multiprocess(seqs, n=4, min_repeats=2)
-tandems = tandem_repeats_multiprocess(seqs, n=4, min_repeats=2)
-variable = variable_tandem_repeats_multiprocess(seqs, min_n=2, max_n=6, min_repeats=2)
-
-print(onsets)
-print(tandems)
-print(variable)
+```bash
+git clone https://github.com/hssn-20/dvq.git
+cd dvq
+pip install -e ".[test]"
 ```
 
 ---
 
-### Notes
+## Core Modules & Functionality
 
-- Designed for biological sequence analysis and model evaluation.
-- Place this module in `src/functional/` and import as needed in larger packages.
+DVQ is organized into three modular subpackages (`dvq.visual`, `dvq.statistical`, and `dvq.functional`) with a flat top-level convenience namespace:
 
+### 1. `dvq.visual` — Geometric & Spatial Representations
+
+- **2D & 3D Cumulative Vector Trajectories (`plot_2d_sequences`, `plot_2d_comparison`, `plot_3d_sequences`, `acgt_to_3d_trajectory`, `max_euclidean_distance`, `interpolate_trajectory`)**:
+  Maps nucleotides (`A, T/U, G, C`) onto non-degenerate 2D or 3D unit vectors (following Yau et al., 2003) and computes cumulative sum trajectories along the sequence.
+  ```python
+  import dvq
+
+  seq1 = "ATCGATCGATCG"
+  seq2 = "GCTAGCTAGCTA"
+  dvq.plot_2d_comparison([[seq1], [seq2]], labels=["Strain A", "Strain B"])
+  traj3d = dvq.acgt_to_3d_trajectory(seq1)
+  ```
+- **Chaos Game Representation (`CGR`, `FCGR`, `GenerateFCGR`)**:
+  Bijective fractal encoding (`CGR.encode` / `CGR.decode`) and $2^k \times 2^k$ Frequency Chaos Game Representation (`FCGR`) matrices.
+  ```python
+  fcgr_gen = dvq.GenerateFCGR(destination_folder="img", kmer=5)
+  matrix = fcgr_gen.from_seq("ATCGATCGATCG")
+  ```
+- **ColorSquare (`generate_color_square`)**:
+  Clockwise spiral grid mapping nucleotides to RGB color channels for rapid visual detection of compositional skews and tandem repeats.
+  ```python
+  dvq.generate_color_square("ATCG" * 250, save_path="color_square.png")
+  ```
+
+---
+
+### 2. `dvq.statistical` — Information-Theoretic, Optimal Transport & Multi-Sequence Distribution Metrics
+
+- **Generalized Deng Entropy (`denq_entropy_generalised`, `deng_entropy_short_sequence`, `calculate_deng_entropies_multiprocess`, `deng_KL_divergence`, `unique_window_ratio`)**:
+  Generalizes Shannon entropy by weighting sliding-window k-mer probabilities by combinatorial subset cardinality ($2^{|X_i|} - 1$). Includes window-normalized, `lru_cache`-accelerated `deng_entropy_short_sequence` tailored for short nucleotide sequences (15–100 nt).
+- **Biological-Cost Wasserstein Distance (`wasserstein_distance`, `wasserstein_distance_matrix`)**:
+  Computes exact Earth Mover's Distance (`POT` / `ot.emd2`) over top-$N$ k-mer distributions using pairwise **Hamming distance** as the ground substitution cost.
+- **Jensen–Shannon & Kullback–Leibler Divergences (`js_divergence`, `kl_divergence`)**:
+  Symmetric bounded (`[0, 1]` bit) JS divergence and directional KL divergence over sliding-window chunk distributions.
+- **Multi-Sequence / Collection Distribution Functions (`kmer_distribution_from_sequences`, `wasserstein_from_distributions`, `js_divergence_from_distributions`, `kl_divergence_from_distributions`, `compute_kl_distances`, `compute_jaccard_distances`)**:
+  Aggregate arbitrary collections of sequences (e.g., multi-FASTA gene families, metagenomic contigs, viral quasispecies, synthetic sequence batches, or immune repertoires) into boundary-preserving k-mer distributions with optional abundance `weights` and length-bias normalization (`normalize_per_sequence=True`).
+  ```python
+  dist_a = dvq.kmer_distribution_from_sequences(seqs_a, k=6, weights=counts_a)
+  dist_b = dvq.kmer_distribution_from_sequences(seqs_b, k=6, weights=counts_b)
+
+  w_dist = dvq.wasserstein_from_distributions(dist_a, dist_b, max_kmers=512)
+  js_div = dvq.js_divergence_from_distributions(dist_a, dist_b)
+  ```
+- **Multi-Scale MinHash Jaccard Similarity (`average_kmer_jaccard_similarity`)**:
+  Fast `sourmash` MinHash sketch overlap averaged across multiple k-mer resolutions (default $k \in \{1, 3, 7, 20\}$).
+- **Wen's Method (`similarity_wen`, `moment_of_inertia`) & Persistent Homology (`persistence_homology`, `compare_persistence_homology`)**:
+  Context-weighted 4D Fermat spiral moments of inertia and Vietoris–Rips persistence diagram sliced Wasserstein distance (`ripser` + `persim`).
+
+---
+
+### 3. `dvq.functional` — Spectral Signal Processing & Repeat Analysis
+
+- **Fast Fourier Transform Power Spectra (`power_spectrum`, `spectral_distance`, `power_spectra_batch`)**:
+  Converts 4-channel binary indicator encodings into length-normalized, z-scored frequency power spectra (`n_bins=512`) and compares periodicities via Euclidean or Pearson correlation distance.
+- **Discrete Wavelet Transform Energy (`wavelet_energy`, `wavelet_distance`)**:
+  Computes multi-resolution Daubechies (`db4`) wavelet decomposition energies across $L=6$ scales to capture localized compositional shifts.
+- **Exact Tandem Repeat Detection (`find_genomic_repeats`)**:
+  Identifies exact tandem repeats via `pytrf.GTRFinder` and extracts dominant motif-repeat pairs (useful both for biological satellite analysis and for auditing pathological repeat collapse in generative DNA language models).
+  ```python
+  df_repeats, top_motifs = dvq.find_genomic_repeats("ATGATGATGATGATGATG", top_n=5)
+  ```
+
+---
+
+## Community Extensibility & Contributing
+
+**DVQ is designed as an open, community-driven toolkit.** Because each subpackage (`dvq.visual`, `dvq.statistical`, `dvq.functional`) follows a simple functional contract—accepting standard nucleotide strings or sequence iterables and returning NumPy arrays, Matplotlib figures, or scalar distances—researchers can easily contribute new sequence encodings, alignment-free distance metrics, or visual diagnostics via pull requests at [https://github.com/hssn-20/dvq](https://github.com/hssn-20/dvq).
+
+---
+
+## License
+
+Apache License 2.0.

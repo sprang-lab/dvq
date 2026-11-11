@@ -4,20 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dvq"
-version = "0.0.4.8.5"
-description = "This is a library to validate and compare dna sequences"
+version = "0.1.0"
+description = "DVQ: A community-extensible Python library for alignment-free visual, statistical, and spectral representation of nucleotide sequences"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache-2.0"}
 dependencies = [
-    "numpy", 
-    "matplotlib", 
-    "persim", 
-    "ripser", 
-    "Cython", 
-    "tqdm", 
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "POT",
+    "PyWavelets",
+    "persim",
+    "ripser",
+    "Cython",
+    "tqdm",
     "sourmash",
-    "PyWavelets"
+    "pytrf",
 ]
 
 [tool.setuptools.packages.find]

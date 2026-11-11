@@ -1,7 +1,12 @@
-import persim
-import ripser
 import matplotlib.pyplot as plt
 import numpy as np
+
+try:
+    import persim
+    import ripser
+except ImportError:
+    persim = None
+    ripser = None
 
 
 NUCLEOTIDE_MAPPING = {
@@ -30,6 +35,8 @@ def chaos_4d_representation(dna_sequence):
 
 
 def persistence_homology(dna_sequence, multi=False, plot=False, sample_rate=7):
+    if ripser is None or persim is None:
+        raise ImportError("ripser and persim are required for persistence_homology.")
     if multi:
         c4dr_points = np.array([chaos_4d_representation(sequence) for sequence in dna_sequence])
         dgm_dna = [ripser.ripser(points[::sample_rate], maxdim=1)['dgms'] for points in c4dr_points]
@@ -44,6 +51,8 @@ def persistence_homology(dna_sequence, multi=False, plot=False, sample_rate=7):
 
 
 def compare_persistence_homology(dna_sequence1, dna_sequence2):
+    if ripser is None or persim is None:
+        raise ImportError("ripser and persim are required for compare_persistence_homology.")
     dgm_dna1 = persistence_homology(dna_sequence1)
     dgm_dna2 = persistence_homology(dna_sequence2)
     distance = persim.sliced_wasserstein(dgm_dna1[1], dgm_dna2[1])

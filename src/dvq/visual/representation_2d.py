@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Mapping, Optional, Sequence
 from collections import namedtuple
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,6 +19,16 @@ mapping_easy = {
     'G': np.array([0.8660254037844386, -0.5]),
     'C': np.array([0.8660254037844386, 0.5]),
     'N': np.array([0, 0])
+}
+
+# 3D nucleotide encoding (x, y, z) following Yau et al. (2003).
+# The z axis increments by 1 per basepair so trajectories never self-intersect.
+BASE_TO_VEC_3D: Dict[str, tuple[float, float, float]] = {
+    "A": (0.0, 1.0, 1.0),
+    "T": (0.0, -1.0, 1.0),
+    "U": (0.0, -1.0, 1.0),
+    "G": (1.0, 0.0, 1.0),
+    "C": (-1.0, 0.0, 1.0),
 }
 
 # coordinates for x+iy
@@ -66,6 +76,98 @@ def plot_2d_comparison(dna_sequences_grouped, labels, mapping=mapping_easy):
     by_label = dict(zip(labels, handles))
     ax.legend(by_label.values(), by_label.keys())
     plt.show()
+
+
+def acgt_to_3d_trajectory(seq: str) -> np.ndarray:
+    """Map an ACGT(U) string to a 3D cumulative trajectory of shape (len(seq), 3)."""
+    vecs = np.array(
+        [BASE_TO_VEC_3D.get(ch.upper(), (0.0, 0.0, 1.0)) for ch in seq],
+        dtype=np.float32,
+    )
+    return np.cumsum(vecs, axis=0)
+
+
+def trajectory_2d(traj3d: np.ndarray) -> np.ndarray:
+    """Project a (..., L, 3) trajectory down to (..., L, 2) by dropping the z axis."""
+    return traj3d[..., :2]
+
+
+def max_euclidean_distance(traj_a: np.ndarray, traj_b: np.ndarray) -> float:
+    """Maximum pointwise Euclidean distance between two trajectories of matching shape."""
+    if traj_a.shape != traj_b.shape:
+        raise ValueError(f"Trajectory shapes disagree: {traj_a.shape} vs {traj_b.shape}")
+    dists = np.linalg.norm(traj_a - traj_b, axis=-1)
+    return float(dists.max())
+
+
+def interpolate_trajectory(traj: np.ndarray, target_length: int = 1000) -> np.ndarray:
+    """Linearly interpolate a (L, D) trajectory to a fixed length along its first axis."""
+    if traj.ndim != 2:
+        raise ValueError(f"Expected (L, D), got shape {traj.shape}")
+    L = traj.shape[0]
+    if L == target_length:
+        return traj
+    xs_old = np.linspace(0.0, 1.0, L)
+    xs_new = np.linspace(0.0, 1.0, target_length)
+    cols = [np.interp(xs_new, xs_old, traj[:, d]) for d in range(traj.shape[1])]
+    return np.stack(cols, axis=-1).astype(traj.dtype, copy=False)
+
+
+def plot_3d_sequences(
+    sequences: Sequence[str],
+    labels: Optional[Sequence[str]] = None,
+    output_path: Optional[str | Path] = None,
+    label_colors: Optional[Mapping[str, str]] = None,
+    max_points: int = 5000,
+    title: str = "3D Sequence Representation",
+    show: bool = True,
+):
+    """Plot per-sequence 3D cumulative trajectories (basepair, GC, TAU axes) colored by group label."""
+    if labels is None:
+        labels = ["Sequence"] * len(sequences)
+    if label_colors is None:
+        unique = sorted(set(labels))
+        cmap = plt.get_cmap("tab10")
+        label_colors = {lbl: cmap(i % 10) for i, lbl in enumerate(unique)}
+
+    fig = plt.figure(figsize=(6.0, 5.2))
+    ax = fig.add_subplot(111, projection="3d")
+
+    seen_labels = set()
+    for seq, lbl in zip(sequences, labels):
+        traj = acgt_to_3d_trajectory(seq)
+        if len(traj) > max_points:
+            idx = np.linspace(0, len(traj) - 1, max_points, dtype=np.int64)
+            traj = traj[idx]
+        plot_lbl = lbl if lbl not in seen_labels else None
+        seen_labels.add(lbl)
+        ax.plot(
+            traj[:, 2],
+            traj[:, 0],
+            traj[:, 1],
+            color=label_colors[lbl],
+            alpha=0.55,
+            lw=0.7,
+            label=plot_lbl,
+        )
+
+    ax.set_xlabel("Basepair axis")
+    ax.set_ylabel("GC axis")
+    ax.set_zlabel("TAU axis")
+    ax.set_title(title)
+    if len(seen_labels) > 1:
+        ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    if output_path is not None:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=300, bbox_inches="tight")
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+    return fig
+
 
 # Class to create a Chaos Game Representation
 class CGR:
@@ -236,4 +338,3 @@ class GenerateFCGR:
           if letter not in "ATCG":
             seq = seq.replace(letter,"N")
         return seq
-

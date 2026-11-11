@@ -1,12 +1,41 @@
 # Wasserstein distance between DNA sequences.
 # Sequences are represented as k-mer frequency distributions.
 # The ground metric between k-mers is Hamming distance, reflecting the true biological
-# cost of substitution between nucleotides. 
+# cost of substitution between nucleotides.
 
 import numpy as np
-import ot
 from typing import Dict, List
 from collections import Counter
+
+try:
+    import ot as _ot
+except ImportError:
+    _ot = None
+
+
+def _solve_emd2(a: np.ndarray, b: np.ndarray, cost_matrix: np.ndarray) -> float:
+    """Solve exact Earth Mover's Distance using POT (ot.emd2) or SciPy HiGHS LP solver."""
+    if _ot is not None:
+        return float(_ot.emd2(a, b, cost_matrix))
+    from scipy.optimize import linprog
+    from scipy.sparse import lil_matrix
+
+    n = len(a)
+    if n == 0 or np.allclose(a, b):
+        return 0.0
+    c = cost_matrix.ravel()
+    # 2n equality constraints: row sums = a, col sums = b (drop last redundant constraint)
+    A_eq = lil_matrix((2 * n - 1, n * n), dtype=float)
+    for i in range(n):
+        A_eq[i, i * n : (i + 1) * n] = 1.0
+    for j in range(n - 1):
+        A_eq[n + j, j :: n] = 1.0
+    b_eq = np.concatenate([a, b[:-1]])
+    res = linprog(c, A_eq=A_eq.tocsc(), b_eq=b_eq, bounds=(0, None), method="highs")
+    if not res.success:
+        raise RuntimeError(f"EMD linear program failed: {res.message}")
+    return float(max(0.0, res.fun))
+
 
 def _calculate_kmer_distribution(seq: str, k: int) -> Dict[str, float]:
     """
@@ -31,9 +60,10 @@ def _calculate_kmer_distribution(seq: str, k: int) -> Dict[str, float]:
     total = sum(counts.values())
     return {kmer: count / total for kmer, count in counts.items()}
 
+
 def _hamming_distance(a: str, b: str) -> int:
     """
-    Compute the Hamming distance between two equal-length k-mers, 
+    Compute the Hamming distance between two equal-length k-mers,
     it counts the number of positions at which the nucleotides differ,
     representing the minimum number of substitutions to transform one k-mer
     into the other.
@@ -109,9 +139,9 @@ def wasserstein_distance(
     Parameters:
     seq_P (str): first DNA sequence.
     seq_Q (str): second DNA sequence.
-    k (int): k-mer size (default: 7). 
+    k (int): k-mer size (default: 7).
     max_kmers (int): maximum vocabulary size for the cost matrix (default: 512).
-                     
+
     Returns:
     float: Wasserstein distance between the two sequences.
 
@@ -139,7 +169,7 @@ def wasserstein_distance(
 
     cost_matrix = _build_cost_matrix(all_kmers)
 
-    return float(ot.emd2(a, b, cost_matrix))
+    return _solve_emd2(a, b, cost_matrix)
 
 
 def wasserstein_distance_matrix(
@@ -172,7 +202,7 @@ def wasserstein_distance_matrix(
             b /= b.sum()
 
             cost_matrix = _build_cost_matrix(all_kmers)
-            dist = float(ot.emd2(a, b, cost_matrix))
+            dist = _solve_emd2(a, b, cost_matrix)
 
             matrix[i, j] = dist
             matrix[j, i] = dist
